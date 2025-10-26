@@ -173,6 +173,32 @@ class EventTransformerManager {
             eventTransformer.append(PointerRedirectsToScrollTransformer())
         }
 
+        // EXPERIMENTAL: Trackpad gesture support
+        // Add multi-finger swipe transformer for trackpad devices
+        if device?.category == .trackpad {
+            // 3-finger swipe left -> Control+Tab
+            // 3-finger swipe right -> Control+Shift+Tab
+            let swipeTransformer = MultiFingerSwipeTransformer(mappings: [
+                .init(fingerCount: 3, direction: .left, keys: [.control, .tab]),
+                .init(fingerCount: 3, direction: .right, keys: [.control, .shift, .tab])
+            ])
+            eventTransformer.append(swipeTransformer)
+
+            // Bottom-left corner tap -> Command+Left
+            // Bottom-right corner tap -> Command+Right
+            let cornerTapTransformer = CornerTapTransformer(
+                bottomLeft: [.command, .arrowLeft],
+                bottomRight: [.command, .arrowRight]
+            )
+            eventTransformer.append(cornerTapTransformer)
+
+            os_log(
+                "Added experimental trackpad gesture transformers",
+                log: Self.log,
+                type: .info
+            )
+        }
+
         eventTransformerCache.setValue(eventTransformer, forKey: cacheKey)
 
         return eventTransformer

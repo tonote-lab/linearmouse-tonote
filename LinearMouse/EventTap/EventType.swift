@@ -15,7 +15,8 @@ class EventType {
         .otherMouseDragged,
         .keyDown,
         .keyUp,
-        .flagsChanged
+        .flagsChanged,
+        .init(rawValue: 29)! // gesture events (NSEvent.EventType.gesture)
     ]
 
     static let mouseMoved: CGEventType = .mouseMoved
