@@ -175,6 +175,14 @@ class EventTransformerManager {
 
         // EXPERIMENTAL: Trackpad gesture support
         // Add multi-finger swipe transformer for trackpad devices
+        os_log(
+            "Device category check: %{public}@, isTrackpad: %d",
+            log: Self.log,
+            type: .info,
+            String(describing: device?.category),
+            device?.category == .trackpad ? 1 : 0
+        )
+
         if device?.category == .trackpad {
             // 3-finger swipe left -> Control+Tab
             // 3-finger swipe right -> Control+Shift+Tab
