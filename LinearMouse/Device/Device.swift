@@ -321,7 +321,7 @@ extension Device {
             ) else {
                 continue
             }
-            event.post(tap: .cghidEventTap)
+            event.post(tap: .cgSessionEventTap)
         }
         lastButtonStates = buttonStates
     }

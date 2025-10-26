@@ -3,6 +3,7 @@
 
 import Foundation
 import os.log
+import IOKit.hid
 
 /// トラックパッドジェスチャー情報を取得するビュークラス
 class TrackpadGestureView {
@@ -12,7 +13,7 @@ class TrackpadGestureView {
     )
 
     let event: CGEvent
-    private let ioHidEvent: IOHIDEventRef?
+    private let ioHidEvent: IOHIDEvent?
 
     init?(_ event: CGEvent) {
         self.event = event
@@ -55,56 +56,77 @@ class TrackpadGestureView {
 
     /// スワイプ方向（複数の方向が同時に返される場合あり）
     var swipeDirections: [SwipeDirection] {
-        guard let ioHidEvent else { return [] }
-
-        // ナビゲーションスワイプイベントを取得
-        guard let swipeEvent = IOHIDEventGetEvent(ioHidEvent, IOHIDEventType.navigationSwipe.rawValue) else {
-            return []
-        }
-
-        let swipeMask = IOHIDEventGetIntegerValue(swipeEvent, kIOHIDEventFieldSwipeMask)
+        // CGEventの基本的なスワイプ情報から判定
+        let deltaX = event.getDoubleValueField(.scrollWheelEventDeltaAxis1)
+        let deltaY = event.getDoubleValueField(.scrollWheelEventDeltaAxis2)
+        
         var directions: [SwipeDirection] = []
-
-        if swipeMask & Int64(IOHIDSwipeMask.swipeLeft.rawValue) != 0 {
-            directions.append(.left)
+        let threshold = 10.0 // スワイプ検出のしきい値
+        
+        if abs(deltaX) > threshold {
+            if deltaX > 0 {
+                directions.append(.right)
+            } else {
+                directions.append(.left)
+            }
         }
-        if swipeMask & Int64(IOHIDSwipeMask.swipeRight.rawValue) != 0 {
-            directions.append(.right)
+        
+        if abs(deltaY) > threshold {
+            if deltaY > 0 {
+                directions.append(.up)
+            } else {
+                directions.append(.down)
+            }
         }
-        if swipeMask & Int64(IOHIDSwipeMask.swipeUp.rawValue) != 0 {
-            directions.append(.up)
-        }
-        if swipeMask & Int64(IOHIDSwipeMask.swipeDown.rawValue) != 0 {
-            directions.append(.down)
-        }
-
+        
         return directions
     }
 
     /// 指の本数を取得（簡易実装）
-    /// 注: IOHIDEventから直接タッチ数を取得するのは難しいため、
-    /// CGEventのジェスチャーフェーズと組み合わせて推測する
+    /// 注: CGEventから推測する簡易実装
     var fingerCount: Int {
-        guard let ioHidEvent else { return 0 }
-
-        // デジタイザー子イベントからタッチ数を推測
-        guard let children = IOHIDEventGetChildren(ioHidEvent) as? [IOHIDEventRef] else {
-            return 1 // デフォルトは1本指
+        // CGEventからマルチタッチイベントの指の本数を取得を試みる
+        // これは近似値であり、実際の値と異なる場合があります
+        let eventType = event.type
+        
+        switch eventType {
+        case .scrollWheel:
+            // スクロールイベントの場合、デルタの大きさから推測
+            let deltaX = abs(event.getDoubleValueField(.scrollWheelEventDeltaAxis1))
+            let deltaY = abs(event.getDoubleValueField(.scrollWheelEventDeltaAxis2))
+            
+            if deltaX > 50 || deltaY > 50 {
+                return 2 // 大きな動きは2本指と推定
+            }
+            return 1
+        case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+            return 2 // ドラッグイベントは通常2本指以上と推定
+        default:
+            return 1
         }
-
-        // デジタイザータイプの子イベントをカウント
-        let digitizerChildren = children.filter { child in
-            IOHIDEventGetType(child) == kIOHIDEventTypeDigitizer
-        }
-
-        return max(digitizerChildren.count, 1)
     }
 
     // MARK: - ジェスチャーフェーズ
 
-    var gesturePhase: CGSGesturePhase? {
-        let phaseValue = event.getIntegerValueField(.gesturePhase)
-        return CGSGesturePhase(rawValue: UInt8(phaseValue))
+    /// ジェスチャーフェーズ（簡易実装）
+    var gesturePhase: GesturePhase? {
+        let eventType = event.type
+        
+        // イベントタイプからジェスチャーフェーズを推測
+        switch eventType {
+        case .scrollWheel:
+            // スクロールイベントの場合、継続中と仮定
+            return .changed
+        case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
+            // ドラッグイベントの場合も継続中と仮定
+            return .changed
+        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
+            return .began
+        case .leftMouseUp, .rightMouseUp, .otherMouseUp:
+            return .ended
+        default:
+            return nil
+        }
     }
 
     // MARK: - コーナー検出
@@ -159,30 +181,32 @@ class TrackpadGestureView {
 // MARK: - Supporting Types
 
 extension TrackpadGestureView {
-    enum SwipeDirection: String {
+    enum SwipeDirection: String, CaseIterable {
         case left = "left"
         case right = "right"
         case up = "up"
         case down = "down"
     }
 
-    enum TapCorner: String {
+    enum TapCorner: String, CaseIterable {
         case topLeft = "topLeft"
         case topRight = "topRight"
         case bottomLeft = "bottomLeft"
         case bottomRight = "bottomRight"
     }
+    
+    enum GesturePhase: String, CaseIterable {
+        case none = "none"
+        case began = "began"
+        case changed = "changed"
+        case ended = "ended"
+        case cancelled = "cancelled"
+        case mayBegin = "mayBegin"
+    }
 }
 
-extension CGSGesturePhase: CustomStringConvertible {
+extension TrackpadGestureView.GesturePhase: CustomStringConvertible {
     public var description: String {
-        switch self {
-        case .none: return "none"
-        case .began: return "began"
-        case .changed: return "changed"
-        case .ended: return "ended"
-        case .cancelled: return "cancelled"
-        case .mayBegin: return "mayBegin"
-        }
+        return rawValue
     }
 }

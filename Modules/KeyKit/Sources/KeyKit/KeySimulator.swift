@@ -9,6 +9,8 @@ public enum KeySimulatorError: Error {
 
 /// Simulate key presses.
 public class KeySimulator {
+    public static let shared = KeySimulator()
+    
     private let keyCodeResolver = KeyCodeResolver()
 
     private var flags = CGEventFlags()
@@ -67,7 +69,7 @@ public class KeySimulator {
             event.type = .flagsChanged
         }
 
-        event.post(tap: tap ?? .cghidEventTap)
+        event.post(tap: tap ?? .cgSessionEventTap)
     }
 }
 

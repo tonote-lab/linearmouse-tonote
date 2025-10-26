@@ -148,7 +148,7 @@ class CornerTapTransformer: EventTransformer {
 
     private func executeKeyPress(_ keys: [Key]) {
         do {
-            try KeySimulator.shared.press(keys: keys, tap: .cghidEventTap)
+            try KeySimulator.shared.press(keys: keys, tap: .cgSessionEventTap)
             os_log(
                 "Successfully executed keyboard shortcut: %{public}@",
                 log: Self.log,

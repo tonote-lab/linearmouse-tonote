@@ -47,8 +47,11 @@ class MultiFingerSwipeTransformer: EventTransformer {
     // MARK: - EventTransformer
 
     func transform(_ event: CGEvent) -> CGEvent? {
-        // ジェスチャーイベントのみ処理
-        guard event.type == .init(nsEventType: .gesture) else {
+        // スクロールイベントまたはマウスイベントを処理
+        guard event.type == .scrollWheel || 
+              event.type == .leftMouseDragged || 
+              event.type == .rightMouseDragged ||
+              event.type == .otherMouseDragged else {
             return event
         }
 
@@ -112,7 +115,7 @@ class MultiFingerSwipeTransformer: EventTransformer {
 
     private func executeKeyPress(_ keys: [Key]) {
         do {
-            try KeySimulator.shared.press(keys: keys, tap: .cghidEventTap)
+            try KeySimulator.shared.press(keys: keys, tap: .cgSessionEventTap)
             os_log(
                 "Successfully executed keyboard shortcut: %{public}@",
                 log: Self.log,
