@@ -183,7 +183,8 @@ class EventTransformerManager {
             device?.category == .trackpad ? 1 : 0
         )
 
-        if device?.category == .trackpad {
+        // Enable for both trackpad and mouse (for testing)
+        if device?.category == .trackpad || device?.category == .mouse {
             // 3-finger swipe left -> Control+Tab
             // 3-finger swipe right -> Control+Shift+Tab
             let swipeTransformer = MultiFingerSwipeTransformer(mappings: [
